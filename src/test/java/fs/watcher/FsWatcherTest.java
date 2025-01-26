@@ -1,5 +1,6 @@
 package fs.watcher;
 
+import fs.watcher.pipeline.WatchDestroyer;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -16,12 +17,17 @@ public class FsWatcherTest {
 
         System.out.println("before watcher");
 
-        fsWatcher.watch(path, Thread.currentThread(), ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+        WatchDestroyer watchDestroyer = fsWatcher
+                .watch(path)
+                .forEvents(ENTRY_CREATE, ENTRY_DELETE)
+                .onChange(c -> {
+                    System.out.println("changed path: " + c.path() + ", event: " + c.kind());
+                });
 
         System.out.println("after watcher");
 
         while (true) {
-            Thread.sleep(3000);
+            Thread.sleep(2000);
 
             System.out.println("main");
         }

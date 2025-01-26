@@ -1,73 +1,53 @@
 package fs.watcher;
 
-import java.io.IOException;
+import fs.watcher.pipeline.EventClosure;
+import fs.watcher.pojo.Change;
+
 import java.nio.file.*;
-import java.util.List;
 
 
 public class FsWatcher {
 
-    private Thread watcherThread;
-    private final WatchService watcher = FileSystems.getDefault().newWatchService();
-    Path fileWatching;
+    EventClosure watch(Path dirOrFile) {
+        return events -> callback -> {
+            WatchService watcher = FileSystems.getDefault().newWatchService();
+            Path watchingDir = Files.isDirectory(dirOrFile) ?
+                    dirOrFile : dirOrFile.getParent();
 
-    public FsWatcher() throws IOException {
-    }
+            WatchKey register = watchingDir.register(watcher, events);
 
-    void watch(Path dirOrFile, Thread syncWith, WatchEvent.Kind<Path>... events) throws IOException, InterruptedException {
-
-        boolean directory = Files.isDirectory(dirOrFile);
-
-        if (!directory) {
-            fileWatching = dirOrFile.getFileName();
-            dirOrFile = dirOrFile.getParent();
-        }
-
-        boolean exists = Files.exists(dirOrFile);
-
-        WatchKey register = dirOrFile.register(watcher, events);
-
-//        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-        System.out.println("before executor");
-//        scheduledExecutorService.execute(() -> {
-
-        watcherThread = new Thread(() -> {
-            WatchKey key = null;
-            try {
-                int i = 0;
-//            while (i++ < 3) {
+            Thread watcherThread = new Thread(() -> {
                 while (true) {
-                    System.out.println("Watching " + fileWatching);
-                    key = watcher.take();
-//                    syncWith.join();
+                    WatchKey key = null;
 
-                    System.out.println("taken");
+                    try {
+                        key = watcher.take();
+                        Thread.sleep(21);
 
-//                    Thread.sleep(100);
-                    List<WatchEvent<?>> watchEvents = key.pollEvents();
-                    System.out.println("polling " + watchEvents.size() + " events");
-                    watchEvents.forEach(watchEvent -> System.out.println(watchEvent.kind()));
+                        key.pollEvents().stream()
+                                .filter(q -> q.context() instanceof Path)
+                                .map(q -> new Change(q.kind(), watchingDir.resolve((Path) q.context())))
+                                .filter(q -> Files.isDirectory(dirOrFile) ?
+                                       q.path().getParent().equals(dirOrFile) : dirOrFile.equals(q.path())
+                                )
+                                .forEach(callback::changed);
 
-                    if (key != null)
-                        key.reset();
-//                    List<WatchEvent<?>> watchEvents = register.pollEvents();
-
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } finally {
+                        if (key != null)
+                            key.reset();
+                    }
                 }
 
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                throw new RuntimeException(e);
-            } finally {
+            });
 
-            }
-//        });
-        });
+            watcherThread.start();
 
-        watcherThread.start();
-//        watcherThread.join();
+            Runtime.getRuntime().addShutdownHook(new Thread(watcherThread::interrupt));
 
+            return watcherThread::interrupt;
+        };
 
-//        scheduledExecutorService.shutdown();
     }
 }

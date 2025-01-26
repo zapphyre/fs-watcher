@@ -1,6 +1,5 @@
 package fs.watcher.pipeline;
 
-import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 
 @FunctionalInterface

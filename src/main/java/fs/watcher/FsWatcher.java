@@ -28,7 +28,7 @@ public final class FsWatcher {
                         key = watcher.take();
 
                         key.pollEvents().stream()
-                                .filter(q -> q.context() instanceof Path)
+                                .filter(contextIsPath)
                                 .map(changeOverWatched(watchingDir))
                                 .filter(isChangeEventRelevant(dirOrFile))
                                 .forEach(callback::changed);
@@ -50,6 +50,8 @@ public final class FsWatcher {
             return FsWatcher::teardown;
         };
     }
+
+    static Predicate<WatchEvent<?>> contextIsPath = q -> q.context() instanceof Path;
 
     static Function<WatchEvent<?>, Change> changeOverWatched(Path dir) {
         return q -> new Change(q.kind(), dir.resolve((Path) q.context()));

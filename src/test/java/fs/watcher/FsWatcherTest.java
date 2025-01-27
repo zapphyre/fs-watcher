@@ -13,7 +13,7 @@ public class FsWatcherTest {
     @Test
     void testWatcher() throws IOException, InterruptedException {
         FsWatcher fsWatcher = new FsWatcher();
-        Path path = Path.of("/", "home", "tepo", "qwer");
+        Path path = Path.of("/", "home", "tepo");
 
         System.out.println("before watcher");
 

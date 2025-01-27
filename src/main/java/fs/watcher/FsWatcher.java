@@ -8,7 +8,7 @@ import java.nio.file.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class FsWatcher {
+public final class FsWatcher {
     private static WatchService watcher;
     private static Thread watcherThread;
 

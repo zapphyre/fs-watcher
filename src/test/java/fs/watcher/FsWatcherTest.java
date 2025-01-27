@@ -12,12 +12,11 @@ public class FsWatcherTest {
 
     @Test
     void testWatcher() throws IOException, InterruptedException {
-        FsWatcher fsWatcher = new FsWatcher();
         Path path = Path.of("/", "home", "tepo");
 
         System.out.println("before watcher");
 
-        WatchDestroyer watchDestroyer = fsWatcher
+        WatchDestroyer watchDestroyer = FsWatcher
                 .watch(path)
                 .forEvents(ENTRY_CREATE, ENTRY_DELETE)
                 .onChange(c -> {

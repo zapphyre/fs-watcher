@@ -5,12 +5,14 @@ import fs.watcher.pojo.Change;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 public final class FsWatcher {
     private static WatchService watcher;
-    private static Thread watcherThread;
+    private static ExecutorService executor;
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(FsWatcher::teardown));
@@ -24,8 +26,9 @@ public final class FsWatcher {
 
             WatchKey register = watchingDir.register(watcher, events);
 
-            watcherThread = new Thread(() -> {
-                while (true) {
+            executor = Executors.newSingleThreadExecutor();
+            executor.submit(() -> {
+                while (!executor.isTerminated()) {
                     WatchKey key = null;
 
                     try {
@@ -37,17 +40,13 @@ public final class FsWatcher {
                                 .filter(isChangeEventRelevant(dirOrFile))
                                 .forEach(callback::changed);
 
+                        key.reset();
                     } catch (InterruptedException e) {
+                        System.out.println("Watcher thread interrupted");
                         e.printStackTrace();
-                    } finally {
-                        if (key != null)
-                            key.reset();
                     }
                 }
-
             });
-
-            watcherThread.start();
 
             return FsWatcher::teardown;
         };
@@ -73,16 +72,17 @@ public final class FsWatcher {
 
     private static void teardown() {
         System.out.println("winding down FS watcher");
-        try {
-            if (watcher != null) {
-                watcher.take(); //need to take last or it errors
-                watcher.close();
-            }
 
-            if (watcherThread.isAlive())
-                watcherThread.interrupt();
-        } catch (IOException | InterruptedException e) {
+        try {
+            if (watcher != null)
+                watcher.close();
+        } catch (IOException e) {
+            System.out.println("error while closing watcher");
             e.printStackTrace();
+        }
+
+        if (executor != null) {
+            executor.shutdownNow();
         }
     }
 }

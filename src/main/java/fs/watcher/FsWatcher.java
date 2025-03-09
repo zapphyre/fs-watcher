@@ -1,6 +1,6 @@
 package fs.watcher;
 
-import fs.watcher.pipeline.EventClosure;
+import fs.watcher.pipeline.PathWatcher;
 import fs.watcher.pojo.Change;
 
 import java.io.IOException;
@@ -12,7 +12,11 @@ public final class FsWatcher {
     private static WatchService watcher;
     private static Thread watcherThread;
 
-    public static EventClosure watch(Path dirOrFile) {
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(FsWatcher::teardown));
+    }
+
+    public static PathWatcher watch(Path dirOrFile) {
         return events -> callback -> {
             watcher = FileSystems.getDefault().newWatchService();
             Path watchingDir = Files.isDirectory(dirOrFile) ?
@@ -45,8 +49,6 @@ public final class FsWatcher {
 
             watcherThread.start();
 
-            Runtime.getRuntime().addShutdownHook(new Thread(FsWatcher::teardown));
-
             return FsWatcher::teardown;
         };
     }
@@ -70,13 +72,16 @@ public final class FsWatcher {
     }
 
     private static void teardown() {
+        System.out.println("winding down FS watcher");
         try {
-            if (watcher != null)
+            if (watcher != null) {
+                watcher.take(); //need to take last or it errors
                 watcher.close();
+            }
 
             if (watcherThread.isAlive())
                 watcherThread.interrupt();
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }

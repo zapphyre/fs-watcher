@@ -26,7 +26,6 @@ public final class FsWatcher {
             executor.submit(() -> {
                 try {
                     watcher = FileSystems.getDefault().newWatchService();
-
                     WatchKey register = watchingDir.register(watcher, events);
                 } catch (IOException e) {
                     System.out.println("Failed to register watcher for path " + dirOrFile);

@@ -12,22 +12,27 @@ import java.util.function.Predicate;
 
 public final class FsWatcher {
     private static WatchService watcher;
-    private static ExecutorService executor;
+    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(FsWatcher::teardown));
     }
 
-    public static PathWatcher watch(Path dirOrFile) {
+    public static synchronized PathWatcher watch(Path dirOrFile) {
         return events -> callback -> {
-            watcher = FileSystems.getDefault().newWatchService();
             Path watchingDir = Files.isDirectory(dirOrFile) ?
                     dirOrFile : dirOrFile.getParent();
 
-            WatchKey register = watchingDir.register(watcher, events);
-
-            executor = Executors.newSingleThreadExecutor();
             executor.submit(() -> {
+                try {
+                    watcher = FileSystems.getDefault().newWatchService();
+
+                    WatchKey register = watchingDir.register(watcher, events);
+                } catch (IOException e) {
+                    System.out.println("Failed to register watcher for path " + dirOrFile);
+                    throw new RuntimeException(e);
+                }
+
                 while (!executor.isTerminated()) {
                     WatchKey key = null;
 
